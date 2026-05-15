@@ -106,6 +106,36 @@ body,
   line-height: 1.5;
 }
 
+.pin-picker-card {
+  border: 1px solid #374151;
+  border-radius: 16px;
+  overflow: hidden;
+  background: #1f2937;
+}
+
+.pin-picker-card .leaflet-container {
+  height: 240px;
+  width: 100%;
+}
+
+.pin-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid #374151;
+  border-radius: 12px;
+  background: #1f2937;
+  color: #d1d5db;
+  font-size: 13px;
+}
+
+.pin-summary strong {
+  color: #f9fafb;
+  font-size: 12px;
+}
+
 .report-actions {
   display: flex;
   flex-direction: column;

@@ -14,13 +14,6 @@ L.Icon.Default.mergeOptions({
 const KW_CENTER = [43.4516, -80.4925];
 const KW_ZOOM = 12;
 
-// Placeholder pothole data until real data is wired in
-const PLACEHOLDER_POTHOLES = [
-  { id: 1, lat: 43.4516, lng: -80.4925, severity: "high", address: "King St & University Ave" },
-  { id: 2, lat: 43.4652, lng: -80.5222, severity: "medium", address: "Weber St N, Waterloo" },
-  { id: 3, lat: 43.3601, lng: -80.3123, severity: "low", address: "Hespeler Rd, Cambridge" },
-];
-
 const SEVERITY_COLOR = { high: "#ef4444", medium: "#f97316", low: "#facc15" };
 
 function severityIcon(severity) {
@@ -76,8 +69,29 @@ function LocateButton() {
 }
 
 export default function MapView() {
+  const [potholes, setPotholes] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    fetch("/api/potholes")
+      .then((r) => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        return r.json();
+      })
+      .then((data) => setPotholes(data))
+      .catch((e) => setError(e.message))
+      .finally(() => setLoading(false));
+  }, []);
+
   return (
     <div className="map-container" style={{ position: "relative" }}>
+      {loading && (
+        <div style={overlayStyle}>Loading potholes…</div>
+      )}
+      {error && (
+        <div style={{ ...overlayStyle, color: "#ef4444" }}>Failed to load: {error}</div>
+      )}
       <MapContainer
         center={KW_CENTER}
         zoom={KW_ZOOM}
@@ -88,16 +102,20 @@ export default function MapView() {
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
-        {PLACEHOLDER_POTHOLES.map((p) => (
+        {potholes.map((p) => (
           <Marker
             key={p.id}
             position={[p.lat, p.lng]}
             icon={severityIcon(p.severity)}
           >
             <Popup>
-              <strong>{p.address}</strong>
+              <strong>{p.address ?? "Unknown location"}</strong>
               <br />
               Severity: {p.severity}
+              <br />
+              Reports: {p.report_count}
+              <br />
+              Status: {p.status}
             </Popup>
           </Marker>
         ))}
@@ -106,3 +124,17 @@ export default function MapView() {
     </div>
   );
 }
+
+const overlayStyle = {
+  position: "absolute",
+  top: 12,
+  left: "50%",
+  transform: "translateX(-50%)",
+  zIndex: 1000,
+  background: "rgba(31,41,55,0.9)",
+  color: "#f9fafb",
+  padding: "6px 14px",
+  borderRadius: 20,
+  fontSize: 13,
+  pointerEvents: "none",
+};

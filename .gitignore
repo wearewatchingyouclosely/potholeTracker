@@ -8,6 +8,10 @@
 /.vite/
 /.netlify/
 
+# Secrets
+.env.local
+.env
+
 # OS/editor noise
 .DS_Store
 *.swp
