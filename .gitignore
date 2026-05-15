@@ -1,0 +1,13 @@
+# Local research and notes
+/research/
+/notes/
+
+# Build artifacts
+/node_modules/
+/dist/
+/.vite/
+/.netlify/
+
+# OS/editor noise
+.DS_Store
+*.swp
