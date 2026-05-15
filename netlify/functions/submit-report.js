@@ -1,13 +1,22 @@
 const { createClient } = require("@supabase/supabase-js");
 const ws = require("ws");
 
-const supabase = createClient(
-  process.env.VITE_SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY,
-  { realtime: { transport: ws } }
-);
-
 const MATCH_RADIUS_METERS = 20;
+
+function getSupabaseClient() {
+  const supabaseUrl = process.env.VITE_SUPABASE_URL;
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+  if (!supabaseUrl || !serviceRoleKey) {
+    throw new Error(
+      "Missing Supabase environment variables. Set VITE_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY in Netlify."
+    );
+  }
+
+  return createClient(supabaseUrl, serviceRoleKey, {
+    realtime: { transport: ws },
+  });
+}
 
 function toRadians(value) {
   return (value * Math.PI) / 180;
@@ -27,7 +36,7 @@ function getDistanceMeters(from, to) {
   return 2 * earthRadiusMeters * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
-async function findNearbyPothole(lat, lng) {
+async function findNearbyPothole(supabase, lat, lng) {
   const { data, error } = await supabase
     .from("potholes")
     .select("id, lat, lng, report_count")
@@ -100,10 +109,22 @@ exports.handler = async (event) => {
     };
   }
 
+  let supabase;
+
+  try {
+    supabase = getSupabaseClient();
+  } catch (clientError) {
+    return {
+      statusCode: 500,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ error: clientError.message }),
+    };
+  }
+
   let pothole = null;
 
   try {
-    const nearbyPothole = await findNearbyPothole(lat, lng);
+    const nearbyPothole = await findNearbyPothole(supabase, lat, lng);
 
     if (nearbyPothole) {
       const { data: updatedPothole, error: updateError } = await supabase

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Circle, MapContainer, Marker, TileLayer, useMapEvents } from "react-leaflet";
 import L from "leaflet";
 
@@ -175,6 +175,64 @@ function PlaceholderForm({ onSubmit, onBack, coords }) {
   );
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState(null);
+  const [isResolvingLocation, setIsResolvingLocation] = useState(false);
+  const [locationLookupError, setLocationLookupError] = useState(null);
+
+  useEffect(() => {
+    if (!pinCoords) {
+      return undefined;
+    }
+
+    const controller = new AbortController();
+
+    async function resolveLocationDetails() {
+      setIsResolvingLocation(true);
+      setLocationLookupError(null);
+
+      try {
+        const response = await fetch(
+          `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${pinCoords.lat}&lon=${pinCoords.lng}&zoom=18&addressdetails=1`,
+          {
+            signal: controller.signal,
+            headers: {
+              Accept: "application/json",
+            },
+          }
+        );
+
+        if (!response.ok) {
+          throw new Error(`Reverse geocoding failed with HTTP ${response.status}`);
+        }
+
+        const data = await response.json();
+        const nextAddress = buildAddressLabel(data);
+        const nextCrossStreets = buildCrossStreetLabel(data, nextAddress);
+
+        if (nextAddress) {
+          setAddress((currentValue) => currentValue || nextAddress);
+        }
+
+        if (nextCrossStreets) {
+          setCrossStreets((currentValue) => currentValue || nextCrossStreets);
+        }
+      } catch (error) {
+        if (error.name !== "AbortError") {
+          setLocationLookupError("Could not auto-fill address details for this pin.");
+        }
+      } finally {
+        if (!controller.signal.aborted) {
+          setIsResolvingLocation(false);
+        }
+      }
+    }
+
+    const timeoutId = window.setTimeout(resolveLocationDetails, 350);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+      controller.abort();
+    };
+  }, [pinCoords?.lat, pinCoords?.lng]);
 
   async function handleSubmit() {
     if (!pinCoords) {
@@ -247,6 +305,14 @@ function PlaceholderForm({ onSubmit, onBack, coords }) {
             : "Not set"}
         </strong>
       </div>
+
+      {isResolvingLocation && (
+        <p style={{ fontSize: 13, color: "#9ca3af" }}>Looking up address details for the selected pin…</p>
+      )}
+
+      {locationLookupError && (
+        <p style={{ fontSize: 13, color: "#f59e0b" }}>{locationLookupError}</p>
+      )}
 
       <label style={labelStyle}>
         Address or Intersection
@@ -482,6 +548,51 @@ function PinPicker({ roughCoords, pinCoords, onPinChange }) {
       )}
     </MapContainer>
   );
+}
+
+function buildAddressLabel(data) {
+  const address = data?.address;
+
+  if (!address) {
+    return data?.display_name || "";
+  }
+
+  const street = address.road || address.pedestrian || address.footway || address.cycleway;
+  const houseNumber = address.house_number;
+
+  if (street && houseNumber) {
+    return `${houseNumber} ${street}`;
+  }
+
+  if (street) {
+    return street;
+  }
+
+  return data?.display_name || "";
+}
+
+function buildCrossStreetLabel(data, exactAddress) {
+  const address = data?.address;
+
+  if (!address) {
+    return "";
+  }
+
+  const parts = [];
+
+  if (address.road && address.road !== exactAddress) {
+    parts.push(address.road);
+  }
+
+  if (address.suburb) {
+    parts.push(address.suburb);
+  }
+
+  if (address.city || address.town || address.village) {
+    parts.push(address.city || address.town || address.village);
+  }
+
+  return parts.join(", ");
 }
 
 function PinPickerEvents({ onPinChange }) {
