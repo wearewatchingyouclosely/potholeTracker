@@ -178,6 +178,9 @@ function PlaceholderForm({ onSubmit, onBack, coords }) {
   const [isResolvingLocation, setIsResolvingLocation] = useState(false);
   const [locationLookupError, setLocationLookupError] = useState(null);
 
+  const [addressAutofillEnabled, setAddressAutofillEnabled] = useState(true);
+  const [crossStreetsAutofillEnabled, setCrossStreetsAutofillEnabled] = useState(true);
+
   useEffect(() => {
     if (!pinCoords) {
       return undefined;
@@ -208,12 +211,12 @@ function PlaceholderForm({ onSubmit, onBack, coords }) {
         const nextAddress = buildAddressLabel(data);
         const nextCrossStreets = buildCrossStreetLabel(data, nextAddress);
 
-        if (nextAddress) {
-          setAddress((currentValue) => currentValue || nextAddress);
+        if (nextAddress && addressAutofillEnabled) {
+          setAddress(nextAddress);
         }
 
-        if (nextCrossStreets) {
-          setCrossStreets((currentValue) => currentValue || nextCrossStreets);
+        if (nextCrossStreets && crossStreetsAutofillEnabled) {
+          setCrossStreets(nextCrossStreets);
         }
       } catch (error) {
         if (error.name !== "AbortError") {
@@ -232,7 +235,7 @@ function PlaceholderForm({ onSubmit, onBack, coords }) {
       window.clearTimeout(timeoutId);
       controller.abort();
     };
-  }, [pinCoords?.lat, pinCoords?.lng]);
+  }, [pinCoords?.lat, pinCoords?.lng, addressAutofillEnabled, crossStreetsAutofillEnabled]);
 
   async function handleSubmit() {
     if (!pinCoords) {
@@ -320,10 +323,24 @@ function PlaceholderForm({ onSubmit, onBack, coords }) {
           type="text"
           placeholder="e.g. King St & University Ave"
           value={address}
-          onChange={(e) => setAddress(e.target.value)}
+          onChange={(e) => {
+            setAddressAutofillEnabled(false);
+            setAddress(e.target.value);
+          }}
           style={inputStyle}
         />
       </label>
+
+      {!addressAutofillEnabled && (
+        <button
+          type="button"
+          className="btn-secondary"
+          onClick={() => setAddressAutofillEnabled(true)}
+          style={{ padding: "10px 12px", fontSize: 13 }}
+        >
+          Re-enable address auto-fill
+        </button>
+      )}
 
       <label style={labelStyle}>
         Cross Streets (optional)
@@ -331,10 +348,24 @@ function PlaceholderForm({ onSubmit, onBack, coords }) {
           type="text"
           placeholder="e.g. King St W and University Ave W"
           value={crossStreets}
-          onChange={(e) => setCrossStreets(e.target.value)}
+          onChange={(e) => {
+            setCrossStreetsAutofillEnabled(false);
+            setCrossStreets(e.target.value);
+          }}
           style={inputStyle}
         />
       </label>
+
+      {!crossStreetsAutofillEnabled && (
+        <button
+          type="button"
+          className="btn-secondary"
+          onClick={() => setCrossStreetsAutofillEnabled(true)}
+          style={{ padding: "10px 12px", fontSize: 13 }}
+        >
+          Re-enable cross-street auto-fill
+        </button>
+      )}
 
       <label style={labelStyle}>
         Landmark / In Front Of (optional)
